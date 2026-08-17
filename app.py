@@ -1,4 +1,16 @@
 import os
+import sys
+
+# Configure OpenCV for headless environments (required for Streamlit Cloud)
+os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
+os.environ['OPENCV_LOG_LEVEL'] = 'SILENT'
+os.environ['LIBGL_ALWAYS_INDIRECT'] = '1'  # Force software rendering for OpenGL
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'  # Disable GUI for Qt-based libraries
+
+# Ensure headless mode for matplotlib and disable display
+import matplotlib
+matplotlib.use('Agg')
+
 import io
 import time
 import json
@@ -7,7 +19,14 @@ import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 import streamlit as st
-from ultralytics import YOLO
+
+# Import ultralytics with improved error handling for Streamlit Cloud
+MODEL_LOAD_ERROR = None
+try:
+    from ultralytics import YOLO
+except Exception as e:
+    MODEL_LOAD_ERROR = str(e)
+    YOLO = None
 
 # Page Configuration
 st.set_page_config(
@@ -109,13 +128,33 @@ CLASS_COLORS_RGB = {
 # Cache Model Loading
 @st.cache_resource
 def load_yolo_model(model_path):
+    if YOLO is None:
+        return None
     if not os.path.exists(model_path):
         st.error(f"Model file not found at: `{model_path}`")
         return None
-    return YOLO(model_path)
+    try:
+        return YOLO(model_path)
+    except Exception as e:
+        st.error(f"Error loading YOLO model: {str(e)}")
+        return None
 
 model = load_yolo_model(WEIGHTS_PATH)
 CLASS_NAMES = model.names if model else {0: 'cup', 1: 'hand', 2: 'phone'}
+
+# Check if model loaded successfully
+if MODEL_LOAD_ERROR or model is None:
+    st.warning(f"""
+    ⚠️ **Model Loading Issue Detected**
+    
+    The app encountered an issue loading the YOLO model on this deployment.
+    {f"Error: {MODEL_LOAD_ERROR}" if MODEL_LOAD_ERROR else "The model file may not be available."}
+    
+    This is typically a Streamlit Cloud compatibility issue with OpenCV/OpenGL graphics libraries.
+    
+    **Workaround**: Some features may be limited, but the app should display evaluation results and error analysis.
+    """)
+
 
 # Sidebar Controls
 st.sidebar.image("https://img.icons8.com/color/96/000000/artificial-intelligence.png", width=64)
@@ -250,86 +289,91 @@ with tab1:
             
         with col2:
             st.markdown("#### 🎯 YOLO Detection Result")
-            start_t = time.time()
-            
-            # Run inference
-            results = model(image_to_process, conf=0.01, iou=iou_threshold, verbose=False)[0]
-            proc_time = (time.time() - start_t) * 1000
-            
-            annotated_img, detections = draw_predictions(
-                image_to_process, results, conf_threshold, iou_threshold, selected_classes
-            )
-            
-            st.image(annotated_img, use_container_width=True)
-            st.caption(f"⚡ Inference Time: `{proc_time:.1f} ms` | Active Confidence Cutoff: `{conf_threshold:.2f}`")
+            if model is None:
+                st.error("❌ YOLO model is not available. Please check the deployment logs for details.")
+                st.info("The model loading failed due to system library incompatibility on Streamlit Cloud.")
+            else:
+                start_t = time.time()
+                
+                # Run inference
+                results = model(image_to_process, conf=0.01, iou=iou_threshold, verbose=False)[0]
+                proc_time = (time.time() - start_t) * 1000
+                
+                annotated_img, detections = draw_predictions(
+                    image_to_process, results, conf_threshold, iou_threshold, selected_classes
+                )
+                
+                st.image(annotated_img, use_container_width=True)
+                st.caption(f"⚡ Inference Time: `{proc_time:.1f} ms` | Active Confidence Cutoff: `{conf_threshold:.2f}`")
 
         st.markdown("---")
         st.markdown("### 📊 Detection Statistics Dashboard")
         
-        # Count stats
-        total_det = len(detections)
-        cup_count = sum(1 for d in detections if d["Class"].lower() == "cup")
-        hand_count = sum(1 for d in detections if d["Class"].lower() == "hand")
-        phone_count = sum(1 for d in detections if d["Class"].lower() == "phone")
-        avg_conf = np.mean([d["Conf_Score"] for d in detections]) * 100 if detections else 0.0
-        
-        m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
-        with m_col1:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">Total Objects</div><div class="metric-val">{total_det}</div></div>', unsafe_allow_html=True)
-        with m_col2:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">Cups ☕</div><div class="metric-val" style="color:#E63946">{cup_count}</div></div>', unsafe_allow_html=True)
-        with m_col3:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">Hands ✋</div><div class="metric-val" style="color:#2A9D8F">{hand_count}</div></div>', unsafe_allow_html=True)
-        with m_col4:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">Phones 📱</div><div class="metric-val" style="color:#F4A261">{phone_count}</div></div>', unsafe_allow_html=True)
-        with m_col5:
-            st.markdown(f'<div class="metric-card"><div class="metric-label">Avg Conf</div><div class="metric-val" style="color:#0284C7">{avg_conf:.1f}%</div></div>', unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        if detections:
-            df_det = pd.DataFrame(detections).drop(columns=["Conf_Score"])
-            st.markdown("#### 📋 Detailed Detections List")
-            st.dataframe(df_det, use_container_width=True)
-        else:
-            st.info("No objects detected above the selected confidence threshold.")
-
-        # Download Section
-        st.markdown("---")
-        st.markdown("### 💾 Save & Download Results")
-        
-        dl_col1, dl_col2, dl_col3 = st.columns(3)
-        
-        # Prepare Image Download
-        buf = io.BytesIO()
-        annotated_img.save(buf, format="PNG")
-        byte_im = buf.getvalue()
-        
-        with dl_col1:
-            st.download_button(
-                label="📥 Download Result Image (PNG)",
-                data=byte_im,
-                file_name=f"yolo_result_{image_name}",
-                mime="image/png"
-            )
+        if model is not None:
+            # Count stats
+            total_det = len(detections)
+            cup_count = sum(1 for d in detections if d["Class"].lower() == "cup")
+            hand_count = sum(1 for d in detections if d["Class"].lower() == "hand")
+            phone_count = sum(1 for d in detections if d["Class"].lower() == "phone")
+            avg_conf = np.mean([d["Conf_Score"] for d in detections]) * 100 if detections else 0.0
             
-        with dl_col2:
-            csv_data = pd.DataFrame(detections).to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📊 Download Detection Report (CSV)",
-                data=csv_data,
-                file_name=f"detections_{image_name}.csv",
-                mime="text/csv"
-            )
+            m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
+            with m_col1:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Total Objects</div><div class="metric-val">{total_det}</div></div>', unsafe_allow_html=True)
+            with m_col2:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Cups ☕</div><div class="metric-val" style="color:#E63946">{cup_count}</div></div>', unsafe_allow_html=True)
+            with m_col3:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Hands ✋</div><div class="metric-val" style="color:#2A9D8F">{hand_count}</div></div>', unsafe_allow_html=True)
+            with m_col4:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Phones 📱</div><div class="metric-val" style="color:#F4A261">{phone_count}</div></div>', unsafe_allow_html=True)
+            with m_col5:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Avg Conf</div><div class="metric-val" style="color:#0284C7">{avg_conf:.1f}%</div></div>', unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
             
-        with dl_col3:
-            json_data = json.dumps(detections, indent=2)
-            st.download_button(
-                label="📄 Download Detection JSON",
-                data=json_data,
-                file_name=f"detections_{image_name}.json",
-                mime="application/json"
-            )
+            if detections:
+                df_det = pd.DataFrame(detections).drop(columns=["Conf_Score"])
+                st.markdown("#### 📋 Detailed Detections List")
+                st.dataframe(df_det, use_container_width=True)
+            else:
+                st.info("No objects detected above the selected confidence threshold.")
+
+            # Download Section
+            st.markdown("---")
+            st.markdown("### 💾 Save & Download Results")
+            
+            dl_col1, dl_col2, dl_col3 = st.columns(3)
+            
+            # Prepare Image Download
+            buf = io.BytesIO()
+            annotated_img.save(buf, format="PNG")
+            byte_im = buf.getvalue()
+            
+            with dl_col1:
+                st.download_button(
+                    label="📥 Download Result Image (PNG)",
+                    data=byte_im,
+                    file_name=f"yolo_result_{image_name}",
+                    mime="image/png"
+                )
+                
+            with dl_col2:
+                csv_data = pd.DataFrame(detections).to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📊 Download Detection Report (CSV)",
+                    data=csv_data,
+                    file_name=f"detections_{image_name}.csv",
+                    mime="text/csv"
+                )
+                
+            with dl_col3:
+                json_data = json.dumps(detections, indent=2)
+                st.download_button(
+                    label="📄 Download Detection JSON",
+                    data=json_data,
+                    file_name=f"detections_{image_name}.json",
+                    mime="application/json"
+                )
 
 # ---------------------------------------------------------
 # TAB 2: VIDEO INFERENCE & LIVE WEBCAM
@@ -361,22 +405,25 @@ with tab2:
         st.markdown("#### 📷 Take a Camera Snapshot to Run Instant Detection")
         camera_photo = st.camera_input("Capture frame from your webcam:")
         if camera_photo is not None:
-            cam_pil = Image.open(camera_photo).convert("RGB")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("##### Captured Webcam Frame")
-                st.image(cam_pil, use_container_width=True)
-            with c2:
-                st.markdown("##### YOLO Detection Result")
-                results = model(cam_pil, conf=0.01, iou=iou_threshold, verbose=False)[0]
-                ann_cam, cam_dets = draw_predictions(cam_pil, results, conf_threshold, iou_threshold, selected_classes)
-                st.image(ann_cam, use_container_width=True)
-                
-            if cam_dets:
-                st.markdown("##### Detections List")
-                st.dataframe(pd.DataFrame(cam_dets).drop(columns=["Conf_Score"]), use_container_width=True)
+            if model is None:
+                st.error("❌ YOLO model is not available. Camera detection requires the model to be loaded.")
             else:
-                st.info("No objects (cup, hand, phone) detected in captured frame.")
+                cam_pil = Image.open(camera_photo).convert("RGB")
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("##### Captured Webcam Frame")
+                    st.image(cam_pil, use_container_width=True)
+                with c2:
+                    st.markdown("##### YOLO Detection Result")
+                    results = model(cam_pil, conf=0.01, iou=iou_threshold, verbose=False)[0]
+                    ann_cam, cam_dets = draw_predictions(cam_pil, results, conf_threshold, iou_threshold, selected_classes)
+                    st.image(ann_cam, use_container_width=True)
+                    
+                if cam_dets:
+                    st.markdown("##### Detections List")
+                    st.dataframe(pd.DataFrame(cam_dets).drop(columns=["Conf_Score"]), use_container_width=True)
+                else:
+                    st.info("No objects (cup, hand, phone) detected in captured frame.")
 
     # Process Video file if selected
     if video_path_to_process is not None and video_source_mode != "📸 Live Camera Snapshot / Stream":

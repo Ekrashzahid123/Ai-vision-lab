@@ -1,0 +1,21 @@
+[client]
+showErrorDetails = true
+
+[logger]
+level = "info"
+
+[theme]
+primaryColor = "#FF0000"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8FAFC"
+textColor = "#0F172A"
+font = "sans serif"
+
+[server]
+maxUploadSize = 200
+headless = true
+enableXsrfProtection = true
+
+# Environment variables for headless/cloud deployment
+[client.client_state]
+

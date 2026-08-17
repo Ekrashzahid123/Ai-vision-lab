@@ -1,9 +1,17 @@
+# OpenCV headless version (no GUI dependencies)
+# Must be listed BEFORE ultralytics to ensure it's used
+opencv-python-headless>=4.5.2
+
+# Core dependencies
 ultralytics==8.4.92
 streamlit==1.53.0
 torch>=2.0.0
-opencv-python-headless
-pillow
-pandas
-numpy
-matplotlib
-pyyaml
+pillow>=9.0.0
+pandas>=1.3.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+pyyaml>=5.4.0
+
+# Ensure opencv-python (GUI version) is NOT installed
+# by specifying we only want the headless version
+
