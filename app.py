@@ -6,7 +6,6 @@ import tempfile
 import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
-import cv2
 import streamlit as st
 from ultralytics import YOLO
 
@@ -208,23 +207,8 @@ def draw_predictions(image_pil, results, conf_thresh, iou_thresh, filter_classes
         
     return draw_img, detections
 
-# Helper Function: Generate Sample Video from unseen images if user doesn't upload a video
-def create_sample_video_path():
-    sample_vid_path = os.path.join(tempfile.gettempdir(), "sample_unseen_slideshow.mp4")
-    if not os.path.exists(sample_vid_path) and os.path.exists(UNSEEN_DIR):
-        files = sorted([f for f in os.listdir(UNSEEN_DIR) if f.lower().endswith(('.jpg', '.jpeg', '.png'))])[:10]
-        if files:
-            first_img = cv2.imread(os.path.join(UNSEEN_DIR, files[0]))
-            h, w, _ = first_img.shape
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            writer = cv2.VideoWriter(sample_vid_path, fourcc, 2, (w, h))
-            for f in files:
-                img_bgr = cv2.imread(os.path.join(UNSEEN_DIR, f))
-                img_bgr = cv2.resize(img_bgr, (w, h))
-                for _ in range(4):  # hold each frame 2 seconds
-                    writer.write(img_bgr)
-            writer.release()
-    return sample_vid_path
+# Note: Video processing with cv2 is not available in Streamlit Cloud
+# This function is kept for reference but is not functional in cloud environments
 
 # ---------------------------------------------------------
 # TAB 1: IMAGE INFERENCE
@@ -371,13 +355,7 @@ with tab2:
             st.video(video_path_to_process)
             
     elif video_source_mode == "🎬 Demo Sample Video (Pre-loaded Unseen Clip)":
-        sample_vid = create_sample_video_path()
-        if os.path.exists(sample_vid):
-            video_path_to_process = sample_vid
-            st.info("Loaded pre-assembled test video generated from unseen photos.")
-            st.video(sample_vid)
-        else:
-            st.warning("Sample video creation unavailable.")
+        st.info("💡 **Video demo features are not available in Streamlit Cloud.** Please use the **Live Camera Snapshot** option or **Upload Video File** (if running locally).")
 
     elif video_source_mode == "📸 Live Camera Snapshot / Stream":
         st.markdown("#### 📷 Take a Camera Snapshot to Run Instant Detection")
@@ -402,62 +380,8 @@ with tab2:
 
     # Process Video file if selected
     if video_path_to_process is not None and video_source_mode != "📸 Live Camera Snapshot / Stream":
-        if st.button("🚀 Process & Annotate Entire Video", type="primary"):
-            cap = cv2.VideoCapture(video_path_to_process)
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = int(cap.get(cv2.CAP_PROP_FPS)) or 24
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            
-            output_path = os.path.join(tempfile.gettempdir(), "annotated_output.mp4")
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            frame_idx = 0
-            start_proc = time.time()
-            total_objects_found = 0
-            
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                    
-                frame_idx += 1
-                img_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                
-                results = model(img_pil, conf=0.01, iou=iou_threshold, verbose=False)[0]
-                ann_pil, frame_dets = draw_predictions(img_pil, results, conf_threshold, iou_threshold, selected_classes)
-                total_objects_found += len(frame_dets)
-                
-                ann_frame = cv2.cvtColor(np.array(ann_pil), cv2.COLOR_RGB2BGR)
-                out.write(ann_frame)
-                
-                progress = min(1.0, frame_idx / total_frames) if total_frames > 0 else 0
-                progress_bar.progress(progress)
-                status_text.text(f"Processing Frame {frame_idx}/{total_frames} ({progress*100:.0f}%)...")
-                
-            cap.release()
-            out.release()
-            
-            elapsed = time.time() - start_proc
-            avg_fps = frame_idx / elapsed if elapsed > 0 else 0
-            
-            st.success(f"🎉 Video Processing Complete! Processed {frame_idx} frames in {elapsed:.1f}s ({avg_fps:.1f} FPS) — Total Detections: {total_objects_found}")
-            
-            with open(output_path, "rb") as vf:
-                video_bytes = vf.read()
-                
-            st.video(video_bytes)
-            
-            st.download_button(
-                label="📥 Download Annotated Result Video (MP4)",
-                data=video_bytes,
-                file_name="yolo_annotated_video.mp4",
-                mime="video/mp4"
-            )
+        st.info("💡 **Video frame-by-frame processing is not available in Streamlit Cloud environments.** Video processing requires OpenCV (cv2) which has native dependencies not supported in the cloud. To use this feature, run the app locally.")
+        st.button("🚀 Process & Annotate Entire Video", type="primary", disabled=True)
 
 # ---------------------------------------------------------
 # TAB 3: MODEL EVALUATION
