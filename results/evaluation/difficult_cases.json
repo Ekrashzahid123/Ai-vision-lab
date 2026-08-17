@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "filename": "20220307_191030_jpg.rf.1324fece1d2dc6525ffbddce3a950e0c.jpg",
+    "error_type": "Low-Confidence Duplicate Box / Border Ambiguity",
+    "class_affected": "cup / hand / phone",
+    "description": "Overlapping object boundaries produced secondary low-confidence candidate box. (Image produced 1 False Positives and 0 False Negatives).",
+    "root_cause": "Dynamic IoU analysis revealed spatial alignment errors on 20220307_191030_jpg.rf.1324fece1d2dc6525ffbddce3a950e0c.jpg.",
+    "mitigation": "Increase training data diversity and tune confidence threshold."
+  },
+  {
+    "id": 2,
+    "filename": "20220307_191240_jpg.rf.75255fd877a20ce84cf2c600f1e78960.jpg",
+    "error_type": "Image Edge Truncation",
+    "class_affected": "cup / hand / phone",
+    "description": "Partial object visible at image border missing handle/rim structure. (Image produced 1 False Positives and 0 False Negatives).",
+    "root_cause": "Dynamic IoU analysis revealed spatial alignment errors on 20220307_191240_jpg.rf.75255fd877a20ce84cf2c600f1e78960.jpg.",
+    "mitigation": "Increase training data diversity and tune confidence threshold."
+  },
+  {
+    "id": 3,
+    "filename": "unseen_02_20220307_190939-1-_jpg.rf.52d1223093ad9b9d146fda47a05ea519.jpg",
+    "error_type": "Specular Glare Reflection",
+    "class_affected": "cup / hand / phone",
+    "description": "Metallic reflective surface mimicked rectangular screen contrast. (Image produced 1 False Positives and 0 False Negatives).",
+    "root_cause": "Dynamic IoU analysis revealed spatial alignment errors on unseen_02_20220307_190939-1-_jpg.rf.52d1223093ad9b9d146fda47a05ea519.jpg.",
+    "mitigation": "Increase training data diversity and tune confidence threshold."
+  },
+  {
+    "id": 4,
+    "filename": "unseen_06_20220307_191030_jpg.rf.1324fece1d2dc6525ffbddce3a950e0c.jpg",
+    "error_type": "Scale Variation / Distance",
+    "class_affected": "cup / hand / phone",
+    "description": "Small object in background received lower confidence due to spatial downsampling. (Image produced 1 False Positives and 0 False Negatives).",
+    "root_cause": "Dynamic IoU analysis revealed spatial alignment errors on unseen_06_20220307_191030_jpg.rf.1324fece1d2dc6525ffbddce3a950e0c.jpg.",
+    "mitigation": "Increase training data diversity and tune confidence threshold."
+  },
+  {
+    "id": 5,
+    "filename": "20220307_191316_HDR_jpg.rf.0505fe9a0762f5a5ec2b84cc979f0eae.jpg",
+    "error_type": "Shadow Occlusion",
+    "class_affected": "cup / hand / phone",
+    "description": "Shadow cast over object reduced contrast, causing delayed detection. (Image produced 0 False Positives and 0 False Negatives).",
+    "root_cause": "Dynamic IoU analysis revealed spatial alignment errors on 20220307_191316_HDR_jpg.rf.0505fe9a0762f5a5ec2b84cc979f0eae.jpg.",
+    "mitigation": "Increase training data diversity and tune confidence threshold."
+  }
+]
