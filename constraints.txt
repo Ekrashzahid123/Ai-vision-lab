@@ -1,0 +1,3 @@
+# Pip constraints file - prevents opencv-python (GUI) from being installed
+# Only allow opencv-python-headless
+opencv-python==0.0.0  # This version doesn't exist, preventing GUI version installation

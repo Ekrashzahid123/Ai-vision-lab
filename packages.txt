@@ -1,6 +1,4 @@
-libsm6
-libxext6
-libxrender-dev
-libgomp1
-libgl1-mesa-glx
-libglib2.0-0
+# System packages are NOT needed for this app
+# opencv-python-headless does not require additional system libraries
+# All dependencies are satisfied by the Python packages in requirements.txt
+
