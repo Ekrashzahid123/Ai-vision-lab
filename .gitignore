@@ -1,1 +1,3 @@
 /evaluation_report.md
+__pycache__/
+*.pyc

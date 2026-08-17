@@ -16,10 +16,9 @@ This occurred because:
 - Added clear comments about the requirement
 - Removed any unnecessary dependencies
 
-### 2. **packages.txt** (Cleaned)
-- Cleared system package installation attempts that were causing apt-get conflicts
-- Streamlit Cloud provides sufficient base dependencies
-- No additional system libraries needed for opencv-python-headless
+### 2. **packages.txt** (Updated)
+- Added `libgl1` and `ffmpeg` to supply system `libGL.so.1` and media dependencies required by OpenCV.
+- Removed `#` comment lines from `packages.txt` because Streamlit Cloud's package installer treats comments as package names, causing `Unable to locate package #` errors during deployment.
 
 ### 3. **app.py** (Enhanced Error Handling)
 - Sets environment variables before any imports:

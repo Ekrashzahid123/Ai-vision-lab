@@ -1,4 +1,2 @@
-# System packages are NOT needed for this app
-# opencv-python-headless does not require additional system libraries
-# All dependencies are satisfied by the Python packages in requirements.txt
-
+libgl1
+ffmpeg
